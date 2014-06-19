@@ -47,10 +47,7 @@ class MainWindow(Gtk.Window):
     def verify_service(self, name, address, port):
         '''A tiny function to return whether the service
         is indeed something we are interested in'''
-        if name == self.avahi_service_name:
-            return True
-        else:
-            return False
+        return True
 
     def add_discovered_service(self, name, address, port):
         self.discovered_services += (name, address, port)
