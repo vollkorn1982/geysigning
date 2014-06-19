@@ -58,3 +58,8 @@ class MainWindow(Gtk.Window):
         self.discovered_services += ((name, address, port), )
 
         return False
+
+
+if __name__ == '__main__':
+    logging.basicConfig(stream=sys.stderr, level=logging.DEBUG,
+        format='%(name)s (%(levelname)s): %(message)s')
