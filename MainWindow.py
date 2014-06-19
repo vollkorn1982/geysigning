@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+
+import logging
+
 from gi.repository import GLib
 from gi.repository import Gtk
 
@@ -7,6 +11,8 @@ from Sections import KeySignSection, GetKeySection
 class MainWindow(Gtk.Window):
 
     def __init__(self):
+        self.log = logging.getLogger()
+    
         Gtk.Window.__init__(self, title="Geysign")
         self.set_border_width(10)
 
