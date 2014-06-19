@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+
+import logging
 from gi.repository import GLib
 from gi.repository import Gtk
 from SignPages import KeysPage, SelectedKeyPage
@@ -41,6 +44,7 @@ class GetKeySection(Gtk.Box):
 
     def __init__(self):
         super(GetKeySection, self).__init__()
+        self.log = logging.getLogger()
 
         # create main container
         container = Gtk.VBox(spacing=10)
