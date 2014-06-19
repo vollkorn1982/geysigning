@@ -1,6 +1,10 @@
-import dbus, gobject, avahi
+#!/usr/bin/env python
+import avahi, dbus
 from dbus import DBusException
 from dbus.mainloop.glib import DBusGMainLoop
+from gi.repository import Gio
+#from gi.repository import Gtk
+from gi.repository import GObject
 
 # Looks for _demo._tcp share
 
@@ -16,29 +20,55 @@ def print_error(*args):
     print 'error_handler'
     print args[0]
 
-def myhandler(interface, protocol, name, stype, domain, flags):
-    print "Found service '%s' type '%s' domain '%s' " % (name, stype, domain)
 
-    if flags & avahi.LOOKUP_RESULT_LOCAL:
-            # local service, skip
-            pass
+class AvahiBrowser:
+    __gsignals__ = (
+        (),
+    )
+    
+    def __init__(self, loop=None, service='_demo._tcp'):
+        self.service = service
 
-    server.ResolveService(interface, protocol, name, stype,
-        domain, avahi.PROTO_UNSPEC, dbus.UInt32(0),
-        reply_handler=service_resolved, error_handler=print_error)
+        self.loop = loop or DBusGMainLoop()
+        self.bus = dbus.SystemBus(mainloop=self.loop)
+        
+        self.server = dbus.Interface( self.bus.get_object(avahi.DBUS_NAME, '/'),
+                'org.freedesktop.Avahi.Server')
 
-loop = DBusGMainLoop()
+        self.sbrowser = dbus.Interface(self.bus.get_object(avahi.DBUS_NAME,
+          self.server.ServiceBrowserNew(avahi.IF_UNSPEC,
+                avahi.PROTO_UNSPEC, TYPE, 'local', dbus.UInt32(0))),
+          avahi.DBUS_INTERFACE_SERVICE_BROWSER)
 
-bus = dbus.SystemBus(mainloop=loop)
+        self.sbrowser.connect_to_signal("ItemNew", self.on_new_item)
 
-server = dbus.Interface( bus.get_object(avahi.DBUS_NAME, '/'),
-        'org.freedesktop.Avahi.Server')
 
-sbrowser = dbus.Interface(bus.get_object(avahi.DBUS_NAME,
-        server.ServiceBrowserNew(avahi.IF_UNSPEC,
-            avahi.PROTO_UNSPEC, TYPE, 'local', dbus.UInt32(0))),
-        avahi.DBUS_INTERFACE_SERVICE_BROWSER)
 
-sbrowser.connect_to_signal("ItemNew", myhandler)
+    def on_new_item(self, interface, protocol, name, stype, domain, flags):
+        print "Found service '%s' type '%s' domain '%s' " % (name, stype, domain)
+    
+        if flags & avahi.LOOKUP_RESULT_LOCAL:
+                # local service, skip
+                pass
 
-gobject.MainLoop().run()
+        self.server.ResolveService(interface, protocol, name, stype,
+            domain, avahi.PROTO_UNSPEC, dbus.UInt32(0),
+            reply_handler=service_resolved, error_handler=print_error)
+
+    def on_service_resolved(self, *args):
+        '''called when the browser successfully found a service'''
+        print 'service resolved'
+        print 'name:', args[2]
+        print 'address:', args[7]
+        print 'port:', args[8]
+
+
+    def on_error(self, *args):
+        print 'error_handler'
+        print args[0]
+
+
+if __name__ == '__main__':
+    ab = AvahiBrowser()
+    GObject.MainLoop().run()
+    
