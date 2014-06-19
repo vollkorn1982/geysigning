@@ -1,3 +1,4 @@
+from gi.repository import GLib
 from gi.repository import Gtk
 from SignPages import KeysPage, SelectedKeyPage
 
@@ -68,7 +69,31 @@ class GetKeySection(Gtk.Box):
         self.saveButton.set_image(Gtk.Image.new_from_icon_name(Gtk.STOCK_SAVE, Gtk.IconSize.BUTTON))
         self.saveButton.set_always_show_image(True)
         self.saveButton.set_margin_bottom(10)
+        self.saveButton.connect('clicked', self.on_button_clicked)
 
         container.pack_start(self.saveButton, False, False, 0)
 
         self.pack_start(container, True, False, 0)
+
+
+    def obtain_key_async(self, fingerprint, callback=None, data=None):
+        import time
+        keydata = str(time.sleep(1))
+        GLib.idle_add(callback, keydata, data)
+        # I wanted to return the idle_add result, maybe for
+        # someone to cancel that.  But if this function here is
+        # itself added via idle_add, then idle_add will keep
+        # adding this function to the loop until this function
+        # returns False...
+        return False
+
+    def on_button_clicked(self, button):
+        statuslabel = self.scanFrameLabel
+        fingerprint = "x"
+        statuslabel.set_markup("downloading key with fingerprint %s" % fingerprint)
+        # Only simulating the download now...
+        GLib.idle_add(self.obtain_key_async, fingerprint, self.received_key, fingerprint)
+        print "clicked"
+
+    def received_key(self, keydata, *data):
+        print "Received key %s", keydata
