@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 
 import logging
+from urlparse import ParseResult
+
+import requests
+from requests.exceptions import ConnectionError
+
 from gi.repository import GLib
 from gi.repository import Gtk
 from SignPages import KeysPage, SelectedKeyPage
@@ -42,8 +47,17 @@ class KeySignSection(Gtk.VBox):
 
 class GetKeySection(Gtk.Box):
 
-    def __init__(self):
+    def __init__(self, app):
+        '''Initialises the section which lets the user
+        start signing a key.
+        
+        ``app'' should be the "app" itself. The place
+        which holds global app data, especially the discovered
+        clients on the network.
+        '''
         super(GetKeySection, self).__init__()
+        
+        self.app = app
         self.log = logging.getLogger()
 
         # create main container
@@ -80,9 +94,55 @@ class GetKeySection(Gtk.Box):
         self.pack_start(container, True, False, 0)
 
 
-    def obtain_key_async(self, fingerprint, callback=None, data=None):
-        import time
-        keydata = str(time.sleep(1))
+
+    def download_key_http(self, address, port):
+        url = ParseResult(
+            scheme='http',
+            # This seems to work well enough with both IPv6 and IPv4
+            netloc="[[%s]]:%d" % (address, port),
+            path='/',
+            params='',
+            query='',
+            fragment='')
+        return requests.get(url.geturl()).text
+        
+
+    def try_download_keys(self, clients):
+        for client in clients:
+            self.log.debug("Getting key from client %s",
+                           client)
+            name, address, port = client
+            try:
+                keydata = self.download_key_http(address, port)
+                yield keydata
+            except ConnectionError, e:
+                # We probably have other errors to catch
+                self.log.exception("While downloading key from %s %i",
+                                   address, port)
+
+
+    def obtain_key_async(self, fingerprint, callback=None, data=None, error_cb=None):
+        other_clients = self.app.discovered_services
+        self.log.debug("The clients found on the network: %s", other_clients)
+        for keydata in self.try_download_keys(other_clients):
+            # check whether the keydata makes sense,
+            # i.e. compute the fingerprint from the obtained key and
+            # compare it with the intended key
+            # We skip it for now...
+            is_valid = True
+            if is_valid:
+                break
+        else:
+            self.log.error("Could not find fingerprint %s " +\
+                           " with the avaiable clients (%s)",
+                           fingerprint, other_clients)
+            self.log.debug("Calling error callback, if available: %s",
+                           error_cb)
+            if error_cb:
+                GLib.idle_add(error_cb, data)
+            # I dislike returning here
+            return
+
         GLib.idle_add(callback, keydata, data)
         # I wanted to return the idle_add result, maybe for
         # someone to cancel that.  But if this function here is
@@ -91,13 +151,22 @@ class GetKeySection(Gtk.Box):
         # returns False...
         return False
 
+
     def on_button_clicked(self, button):
+        # We probably want to rework pretty much everything here
+        # and show a separate page in the notebook or so
         statuslabel = self.scanFrameLabel
         fingerprint = "x"
         statuslabel.set_markup("downloading key with fingerprint %s" % fingerprint)
+        err = lambda x: statuslabel.set_markup("Error downloading")
         # Only simulating the download now...
-        GLib.idle_add(self.obtain_key_async, fingerprint, self.received_key, fingerprint)
+        GLib.idle_add(self.obtain_key_async, fingerprint,
+            self.received_key, fingerprint,
+            # Does not work as expected, probably because idle_add swallows
+            #error_cb=err)
+            err)
         print "clicked"
+
 
     def received_key(self, keydata, *data):
         print "Received key %s", keydata
