@@ -58,6 +58,8 @@ class KeysPage(Gtk.VBox):
         self.tree.append_column(nameColumn)
         self.tree.append_column(emailColumn)
         self.tree.append_column(keyColumn)
+        
+        self.tree.connect('row-activated', self.on_row_activated)
 
         # Use ScrolledWindow to make the TreeView scrollable
         self.scrolled_window = Gtk.ScrolledWindow()
@@ -66,6 +68,10 @@ class KeysPage(Gtk.VBox):
         self.scrolled_window.set_min_content_height(200)
 
         self.pack_start(self.scrolled_window, True, True, 0)
+
+
+    def on_row_activated(self, treeview, *args):
+        print args
 
 
 class SelectedKeyPage(Gtk.HBox):
