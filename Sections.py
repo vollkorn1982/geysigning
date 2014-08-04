@@ -113,7 +113,10 @@ class KeySignSection(Gtk.VBox):
                         self.log.exception(m, keyid)
 
                     else:
-                        self.start_serving_key(openPgpKey)
+                        keydata = self.keysPage.keyring.export_data(openPgpKey.fpr)
+                        self.log.info('About to serve %s', openPgpKey)
+                        self.log.debug('The actual data is %s', keydata)
+                        self.start_serving_key(keydata)
 
         elif button == self.backButton:
             self.notebook.prev_page()
@@ -134,6 +137,7 @@ class KeySignSection(Gtk.VBox):
         "Starts a keyserver with the key"
         self.log.info("Starting to serve key %r", key)
         self.keyserver = 1
+
 
     def stop_serving_key(self):
         "Stops the keyserver started with start_serving_key"
