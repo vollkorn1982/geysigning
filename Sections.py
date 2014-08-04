@@ -46,6 +46,15 @@ class KeySignSection(Gtk.VBox):
         self.keysPage = KeysPage()
         self.keyDetailsPage = KeyDetailsPage()
         self.keyPresentPage = KeyPresentPage()
+        
+        # We hold a reference to a keyserver and
+        # we try to start it once we show the key details
+        # and to stop it once we left the key details page
+        # This should probably go into the main app, not
+        # here in the UI part of the application.
+        # But we make it work first, and then try to make it
+        # nice.
+        self.keyserver = None
 
         # set up notebook container
         self.notebook = Gtk.Notebook()
@@ -99,10 +108,37 @@ class KeySignSection(Gtk.VBox):
                         openPgpKey = self.keysPage.keysDict[keyid]
                         self.keyPresentPage.display_key_details(openPgpKey)
                     except KeyError:
-                        print "No key details can be shown for this id:%s" % (keyid,)
+                        m = "No key details can be shown for this id:%s"
+                        print m % (keyid, )
+                        self.log.exception(m, keyid)
+
+                    else:
+                        self.start_serving_key(openPgpKey)
 
         elif button == self.backButton:
             self.notebook.prev_page()
+            # Yeah, we might also want to check for the correct page
+            # and not unconditionally stop serving. But it seems to
+            # work well enough
+            if self.is_keyserver_running():
+                self.stop_serving_key()
+
+
+
+    def is_keyserver_running(self):
+        "Determines whether we have a keyserver running"
+        return self.keyserver
+
+
+    def start_serving_key(self, key):
+        "Starts a keyserver with the key"
+        self.log.info("Starting to serve key %r", key)
+        self.keyserver = 1
+
+    def stop_serving_key(self):
+        "Stops the keyserver started with start_serving_key"
+        self.log.info("Stopping keyserver %r", self.keyserver)
+        self.keyserver = None
 
 FILENAME = 'testkey.gpg'
 
