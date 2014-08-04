@@ -1,44 +1,56 @@
-import dbus, gobject, avahi
-from dbus import DBusException
+import dbus
+import avahi
+import gobject
 from dbus.mainloop.glib import DBusGMainLoop
 
-# Looks for _demo._tcp share
+class ServiceDiscover:
 
-TYPE = '_demo._tcp'
+    def __init__(self, stype):
+        self.domain = ""
+        self.stype = stype
 
-def service_resolved(*args):
-    print 'service resolved'
-    print 'name:', args[2]
-    print 'address:', args[7]
-    print 'port:', args[8]
+    def discover(self):
 
-def print_error(*args):
-    print 'error_handler'
-    print args[0]
+        loop = DBusGMainLoop()
 
-def myhandler(interface, protocol, name, stype, domain, flags):
-    print "Found service '%s' type '%s' domain '%s' " % (name, stype, domain)
+        self.bus = dbus.SystemBus(mainloop=loop)
+        self.server = dbus.Interface( self.bus.get_object(avahi.DBUS_NAME, '/'),
+                    'org.freedesktop.Avahi.Server')
 
-    if flags & avahi.LOOKUP_RESULT_LOCAL:
-            # local service, skip
+        self.sbrowser = dbus.Interface(self.bus.get_object(avahi.DBUS_NAME,
+                    self.server.ServiceBrowserNew(avahi.IF_UNSPEC,
+                        avahi.PROTO_UNSPEC, self.stype, 'local', dbus.UInt32(0))),
+                    avahi.DBUS_INTERFACE_SERVICE_BROWSER)
+
+        self.sbrowser.connect_to_signal("ItemNew", self.handler)
+
+        gobject.MainLoop().run()
+
+    def handler(self, interface, protocol, name, stype, domain, flags):
+        print "Found service '%s' type '%s' domain '%s' " % (name, stype, domain)
+
+        if flags & avahi.LOOKUP_RESULT_LOCAL:
+            # FIXME: skip local services
             pass
 
-    server.ResolveService(interface, protocol, name, stype,
-        domain, avahi.PROTO_UNSPEC, dbus.UInt32(0),
-        reply_handler=service_resolved, error_handler=print_error)
+        self.server.ResolveService(interface, protocol, name, stype,
+            domain, avahi.PROTO_UNSPEC, dbus.UInt32(0),
+            reply_handler=self.service_resolved, error_handler=self.print_error)
 
-loop = DBusGMainLoop()
+    def service_resolved(self, *args):
+        print 'service resolved'
+        print 'name:', args[2]
+        print 'address:', args[7]
+        print 'port:', args[8]
 
-bus = dbus.SystemBus(mainloop=loop)
+    def print_error(self, *args):
+        print 'error_handler'
+        print args[0]
 
-server = dbus.Interface( bus.get_object(avahi.DBUS_NAME, '/'),
-        'org.freedesktop.Avahi.Server')
 
-sbrowser = dbus.Interface(bus.get_object(avahi.DBUS_NAME,
-        server.ServiceBrowserNew(avahi.IF_UNSPEC,
-            avahi.PROTO_UNSPEC, TYPE, 'local', dbus.UInt32(0))),
-        avahi.DBUS_INTERFACE_SERVICE_BROWSER)
+def test():
+    service_discover = ServiceDiscover(stype='_http._tcp')
+    service_discover.discover()
 
-sbrowser.connect_to_signal("ItemNew", myhandler)
-
-gobject.MainLoop().run()
+if __name__ == "__main__":
+    test()
